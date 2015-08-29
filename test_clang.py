@@ -23,18 +23,43 @@ def ERROR(msg):
 
 TYPE_PREFIX_MAP = {
   'uLong'   : 'ul',
+  'uInt'    : 'ui',
+  'uShort'  : 'us',
+  'uChar'   : 'uc',
+  'unsigned int'    : 'ui',
+  'unsigned char'   : 'uc',
+  'unsigned short'  : 'us',
+  'unsigned long'   : 'ul',
+  'int'     : 'i',
+  'char'    : 'c',
+  'short'   : 's',
+  'long'    : 'l',
+  'Int'     : 'i',
+  'Char'    : 'c',
+  'Short'   : 's',
   'Long'    : 'l',
-  'uShort'  : 's',
-  'unsigned int'  : 'ui',
 }
 
 class Defect(object):
-  def __init__(self, msg, location):
+  def __init__(self, location, msg = ''):
     super(Defect, self).__init__()
     self.msg = msg
     self.location = location
 
 Defects = []
+
+def check_variable_type_prefix(node, *prefixes):
+  for prefix in prefixes:
+    if node.spelling.startswith(prefix) == True:
+      return prefix
+
+  d = Defect(node.location)
+  if len(prefixes) > 1:
+    d.msg = '%s: variable of type %s should begin with [%s]' % (node.spelling, node.type.spelling, ' or '.join(prefixes))
+  else:
+    d.msg = '%s: variable of type %s should begin with %s' % (node.spelling, node.type.spelling, prefixes[0])
+  Defects.append(d)
+  return None
 
 def check_variable_naming(node):
   if node.location.file != None and node.location.file.name != file_name:
@@ -45,31 +70,37 @@ def check_variable_naming(node):
     # check single character variable
     if len(node.spelling) == 1:
       Defects.append(Defect(
-        '%s: should not use single character variable' % (node.spelling),
-        node.location
+        node.location,
+        '%s: should not use single character variable' % (node.spelling)
       ))
 
     # check underscore
     if '_' in node.spelling:
-      d = Defect('%s: variable name should not contain underscore' % node.spelling, node.location)
+      d = Defect(node.location, '%s: variable name should not contain underscore' % node.spelling)
       Defects.append(d)
 
     # check type prefix
-    if node.type.spelling in TYPE_PREFIX_MAP:
-      prefix = TYPE_PREFIX_MAP[node.type.spelling]
-      if node.spelling.startswith(prefix) == False:
-        Defects.append(Defect(
-          '%s: variable of type %s should begin with %s' % (node.spelling, node.type.spelling, prefix),
-          node.location
-        ))
-      elif len(node.spelling) > len(prefix):
+    prefix = None
+    type_name = node.type.spelling
+    try:
+      if node.type.kind == cindex.TypeKind.CONSTANTARRAY:
+        type_name = node.type.element_type.spelling
+        prefix = check_variable_type_prefix(node, 'p', TYPE_PREFIX_MAP[type_name])
+      elif node.type.kind == cindex.TypeKind.POINTER:
+        type_name = node.type.get_pointee().spelling
+        prefix = check_variable_type_prefix(node, 'p', TYPE_PREFIX_MAP[type_name])
+      else:
+        prefix = check_variable_type_prefix(node, TYPE_PREFIX_MAP[type_name])
+    except KeyError:
+      WARN('%s: unknown prefix for type %s %s' % (node.spelling, type_name, node.type.kind))
+    
+    if prefix != None:
+      if len(node.spelling) > len(prefix):
         if node.spelling[len(prefix)].islower():
           Defects.append(Defect(
-            '%s: first character following type prefix %s should be capitalized' % (node.spelling, prefix),
-            node.location
+            node.location,
+            '%s: first character following type prefix %s should be capitalized' % (node.spelling, prefix)
           ))
-    else:
-      WARN('%s: unknown prefix for type %s' % (node.spelling, node.type.spelling))
 
   for c in node.get_children():
     check_variable_naming(c)

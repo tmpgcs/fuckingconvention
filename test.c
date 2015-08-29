@@ -12,5 +12,10 @@ int main(int argc, char** argv)
   unsigned int ui_var = 0;
   uChar ccc[10];
   uChar pCCC[10];
+  uChar pcCC[10];
+  uLong *pi;
+  uLong *pTrue;
+  uLong *ulAAA;
+  uLong *ulaAA;
   return ii;
 }
