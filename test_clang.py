@@ -54,10 +54,7 @@ def check_variable_type_prefix(node, *prefixes):
       return prefix
 
   d = Defect(node.location)
-  if len(prefixes) > 1:
-    d.msg = '%s: variable of type %s should begin with [%s]' % (node.spelling, node.type.spelling, ' or '.join(prefixes))
-  else:
-    d.msg = '%s: variable of type %s should begin with %s' % (node.spelling, node.type.spelling, prefixes[0])
+  d.msg = '%s: variable of type %s should begin with %s' % (node.spelling, node.type.spelling, ' or '.join(prefixes))
   Defects.append(d)
   return None
 
@@ -93,6 +90,15 @@ def check_variable_naming(node):
         prefix = check_variable_type_prefix(node, TYPE_PREFIX_MAP[type_name])
     except KeyError:
       WARN('%s: unknown prefix for type %s %s' % (node.spelling, type_name, node.type.kind))
+      if node.type.kind == cindex.TypeKind.TYPEDEF:
+        # print node.underlying_typedef_type.kind
+        print node.type.get_declaration().underlying_typedef_type.kind
+        print node.type.get_declaration().type.kind
+        print node.type.get_declaration().kind
+        print node.get_definition().kind
+        print node.type.get_declaration().underlying_typedef_type.get_declaration().location
+        print node.type.get_declaration().underlying_typedef_type.get_declaration().kind
+        print node.type.is_pod()
     
     if prefix != None:
       if len(node.spelling) > len(prefix):
